@@ -1,0 +1,5 @@
+{
+    "include": ["resume_app", "utils", "run.py"],
+    "pythonVersion": "3.11",
+    "typeCheckingMode": "basic"
+}

@@ -1,0 +1,28 @@
+{
+  "name": "resume-studio",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "vue": "^3.5.42",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/tsconfig": "^0.9.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vue-tsc": "^3.3.11",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^26.1.0",
+    "vitest": "^4.1.0"
+  },
+  "engines": { "node": ">=22.22.2" }
+}

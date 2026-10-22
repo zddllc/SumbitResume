@@ -1,0 +1,18 @@
+[Unit]
+Description=Resume Studio API and graphical Chrome worker
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/apps/SumbitResume
+Environment=RESUME_ENV_FILE=%h/.config/resume/resume.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/apps/SumbitResume/.venv/bin/python %h/apps/SumbitResume/run.py
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=300
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target
