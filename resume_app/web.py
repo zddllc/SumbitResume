@@ -244,9 +244,17 @@ def state():
         vault().decrypt(g.user["personal_encrypted"])
         if g.user.get("personal_encrypted") else PersonalInfo().model_dump()
     )
+    resume = db().resumes.find_one({"_id": user_id})
+    if resume:
+        for field in ("draft", "confirmed"):
+            if resume.get(field) is not None:
+                resume[field] = ResumeProfile.model_validate(resume[field]).model_dump()
+        if resume.get("pending_import"):
+            candidate = resume["pending_import"]
+            candidate["profile"] = ResumeProfile.model_validate(candidate["profile"]).model_dump()
     return jsonify(public({
         "user": {"name": g.user["name"], "email": g.user["email"]},
-        "resume": db().resumes.find_one({"_id": user_id}),
+        "resume": resume,
         "personal": personal, "llm": llm, "credentials": credentials,
         "tasks": list(db().tasks.find({"user_id": user_id}).sort("created_at", -1).limit(10)),
     }))
@@ -271,6 +279,7 @@ def delete_llm():
 def upload_resume():
     if request.form.get("consent") != "yes":
         raise AppError("需要确认同意将简历文字发送至你配置的模型服务")
+    workflow().require_no_pending_import(g.user["_id"])
     upload = request.files.get("file")
     if upload is None or not upload.filename:
         raise AppError("请选择简历文件")
@@ -284,6 +293,32 @@ def upload_resume():
         raise AppError(str(error)) from error
     task_id = runner().parse_resume(g.user["_id"], filename, text)
     return jsonify(task_id=task_id), 202
+
+
+def import_tokens(data):
+    token, import_id = data.get("edit_token"), data.get("import_id")
+    if not isinstance(token, str) or not token or not isinstance(import_id, str) or not import_id:
+        raise AppError("请重新加载页面后对比上传结果")
+    return token, import_id
+
+
+@web.post("/api/resume/import/apply")
+@require_user
+def apply_resume_import():
+    data = payload()
+    token, import_id = import_tokens(data)
+    workflow().apply_import(
+        g.user["_id"], token, import_id, ResumeProfile.model_validate(data.get("profile")),
+    )
+    return jsonify(ok=True)
+
+
+@web.post("/api/resume/import/discard")
+@require_user
+def discard_resume_import():
+    token, import_id = import_tokens(payload())
+    workflow().discard_import(g.user["_id"], token, import_id)
+    return jsonify(ok=True)
 
 
 @web.post("/api/resume/confirm")
@@ -459,6 +494,10 @@ def get_tailored(resume_id):
         "error": current_job.get("application_error"),
     }
     stored["pdf_ready"] = pdf_ready(db(), g.user["_id"], stored)
+    # Validate the artifact against the original stored shape before adding defaults.
+    stored["resume"] = ResumeProfile.model_validate(stored["resume"]).model_dump()
+    if "source_resume" in stored:
+        stored["source_resume"] = ResumeProfile.model_validate(stored["source_resume"]).model_dump()
     return jsonify(public(stored))
 
 

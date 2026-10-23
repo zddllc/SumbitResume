@@ -65,7 +65,7 @@ class SecretStore:
 def initialize_database(db: Database) -> None:
     existing = set(db.list_collection_names())
     for name in ("users", "resumes", "llm_settings", "jobs", "tailored_resumes",
-                 "credentials", "tasks", "metadata"):
+                 "credentials", "tasks", "metadata", "llm_calls"):
         if name not in existing:
             db.create_collection(name)
     db.users.create_index("email", unique=True)
@@ -74,6 +74,9 @@ def initialize_database(db: Database) -> None:
     db.tailored_resumes.create_index([("user_id", 1), ("job_id", 1), ("created_at", -1)])
     db.credentials.create_index([("user_id", 1), ("site", 1)])
     db.tasks.create_index([("user_id", 1), ("created_at", -1)])
+    db.llm_calls.create_index([("user_id", 1), ("created_at", -1)])
+    db.llm_calls.create_index([("user_id", 1), ("task_id", 1)])
+    db.llm_calls.create_index([("user_id", 1), ("context.job_id", 1), ("created_at", -1)])
     db.metadata.update_one(
         {"_id": "schema"},
         {"$setOnInsert": {"version": 1, "created_at": now()}},
@@ -84,5 +87,12 @@ def initialize_database(db: Database) -> None:
         {"$set": {
             "status": "interrupted", "finished_at": now(),
             "error": "后端已重启，任务中断。可重新操作，已保存的结果会复用。",
+        }},
+    )
+    db.llm_calls.update_many(
+        {"status": {"$in": ["started", "request_saved", "response_received"]}},
+        {"$set": {
+            "status": "interrupted", "finished_at": now(),
+            "error": {"type": "BackendRestarted", "stage": "unknown"},
         }},
     )

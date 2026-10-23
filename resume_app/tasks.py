@@ -13,7 +13,9 @@ from selenium.common.exceptions import WebDriverException
 
 from resume_app.errors import AppError, TaskCancelled
 from resume_app.linkedin import LinkedInBrowser, check_cancelled
+from resume_app.llm_audit import AuditStorageError
 from resume_app.llm_workflow import ResumeWorkflow
+from resume_app.models import resume_cache_data
 from resume_app.storage import fingerprint, now
 from utils.llm_client import LLMResponseError
 
@@ -115,9 +117,9 @@ class TaskRunner:
     def parse_resume(self, user_id: str, filename: str, text: str) -> str:
         settings = self.workflow.llm_settings(user_id)
 
-        def work(_task: str, cancel: Event) -> None:
+        def work(task_id: str, cancel: Event) -> None:
             check_cancelled(cancel)
-            self.workflow.parse_resume(user_id, filename, text, settings)
+            self.workflow.parse_resume(user_id, filename, text, settings, task_id=task_id)
 
         return self.start(user_id, "parse", work)
 
@@ -128,7 +130,7 @@ class TaskRunner:
         def work(task_id: str, cancel: Event) -> None:
             self.db.tasks.update_one(
                 {"_id": task_id},
-                {"$set": {"source_hash": fingerprint(source.model_dump()), "limit": limit}},
+                {"$set": {"source_hash": fingerprint(resume_cache_data(source)), "limit": limit}},
             )
             with closing(self.browser.jobs(limit, cancel)) as candidates:
                 for candidate in candidates:
@@ -138,12 +140,14 @@ class TaskRunner:
                     if candidate.post is not None:
                         try:
                             _resume_id, cached = self.workflow.tailor(
-                                user_id, candidate.post, source, settings
+                                user_id, candidate.post, source, settings, task_id=task_id,
                             )
                             increments["cached" if cached else "generated"] = 1
                         except LLMResponseError as error:
                             message = "模型未返回完整文本，请检查模型设置后重试"
                             _LOGGER.warning("Job %s provider error: %s", candidate.linkedin_id, type(error).__name__)
+                        except AuditStorageError:
+                            raise
                         except AppError as error:
                             message = str(error)
                     update: dict = {
@@ -176,10 +180,12 @@ class TaskRunner:
             self.db.tasks.update_one(
                 {"_id": task_id},
                 {"$set": {
-                    "source_hash": fingerprint(source.model_dump()), "current_job": linkedin_id,
+                    "source_hash": fingerprint(resume_cache_data(source)), "current_job": linkedin_id,
                 }},
             )
-            _resume_id, cached = self.workflow.tailor_stored(user_id, linkedin_id, source, settings)
+            _resume_id, cached = self.workflow.tailor_stored(
+                user_id, linkedin_id, source, settings, task_id=task_id,
+            )
             self.db.tasks.update_one(
                 {"_id": task_id},
                 {"$set": {

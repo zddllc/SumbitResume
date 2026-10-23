@@ -82,15 +82,40 @@ class Language(Model):
     proficiency: ShortText = ""
 
 
+class Publication(Model):
+    title: ShortText = ""
+    authors: list[Annotated[str, Field(min_length=1, max_length=500)]] = Field(default_factory=list, max_length=100)
+    venue: ShortText = ""
+    date: ShortText = ""
+    doi: ShortText = ""
+    url: ShortText = ""
+    details: list[Annotated[str, Field(min_length=1, max_length=10000)]] = Field(default_factory=list, max_length=20)
+
+    @model_validator(mode="after")
+    def require_content(self) -> "Publication":
+        if not any((self.title, self.authors, self.venue, self.date, self.doi, self.url, self.details)):
+            raise ValueError("论文条目不能为空，请填写内容或删除该条")
+        return self
+
+
 class ResumeProfile(Model):
     contact: Contact = Field(default_factory=Contact)
     summary: Text = ""
     skills: list[ShortText] = Field(default_factory=list, max_length=150)
     experience: list[Experience] = Field(default_factory=list, max_length=50)
     education: list[Education] = Field(default_factory=list, max_length=30)
+    publications: list[Publication] = Field(default_factory=list, max_length=100)
     projects: list[Project] = Field(default_factory=list, max_length=50)
     certifications: list[Certification] = Field(default_factory=list, max_length=50)
     languages: list[Language] = Field(default_factory=list, max_length=30)
+
+
+def resume_cache_data(profile: ResumeProfile) -> dict:
+    data = profile.model_dump()
+    # Empty optional sections must not invalidate pre-publication resume caches.
+    if not profile.publications:
+        data.pop("publications")
+    return data
 
 
 class PersonalInfo(Model):

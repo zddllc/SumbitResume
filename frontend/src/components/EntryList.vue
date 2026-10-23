@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import WorkPointList from './WorkPointList.vue'
+import ResumeSection from './ResumeSection.vue'
+import { ref } from 'vue'
 import { lines } from '../lib/forms'
 import type { EditableEntry, FieldDefinition } from '../types'
 
@@ -8,6 +10,7 @@ const props = defineProps<{
   fields: FieldDefinition[]; create: () => EditableEntry; workPoints?: boolean
 }>()
 const emit = defineEmits<{ change: [] }>()
+const panel = ref<InstanceType<typeof ResumeSection> | null>(null)
 function value(entry: EditableEntry, field: FieldDefinition): string {
   const data = entry[field.key]
   if (typeof data === 'string') return data
@@ -26,12 +29,12 @@ function bullets(entry: EditableEntry): string[] {
   return data
 }
 function setBullets(entry: EditableEntry, value: string[]) { entry.bullets = value }
-function add() { props.entries.push(props.create()); emit('change') }
+function add() { props.entries.push(props.create()); panel.value?.expand(); emit('change') }
 function remove(index: number) { props.entries.splice(index, 1); emit('change') }
 </script>
 <template>
-  <section class="editor-section" :data-section="section">
-    <div class="section-heading"><h3>{{ title }}</h3><button type="button" class="secondary small" @click="add">添加一项</button></div>
+  <ResumeSection ref="panel" class="editor-section" :data-section="section" :title="title" :count="entries.length" :initially-open="section === 'experience'">
+    <div class="section-heading"><button type="button" class="secondary small" @click="add">添加一项</button></div>
     <div v-for="(entry, index) in entries" :key="index" class="entry">
       <div class="form-grid">
         <template v-for="field in fields" :key="field.key">
@@ -44,5 +47,5 @@ function remove(index: number) { props.entries.splice(index, 1); emit('change') 
       <WorkPointList v-if="workPoints" :model-value="bullets(entry)" @update:model-value="setBullets(entry, $event)" @change="emit('change')" />
       <button type="button" class="secondary danger small" @click="remove(index)">删除此项</button>
     </div>
-  </section>
+  </ResumeSection>
 </template>

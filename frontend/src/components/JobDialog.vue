@@ -120,7 +120,7 @@ usePolling(async () => {
         <h3>定制简历</h3>
         <div class="card stack">
           <p class="hint">使用已保存的描述和当前全局底板生成，无需重新访问 LinkedIn；相同输入直接复用。</p>
-          <label class="check"><input v-model="consent" type="checkbox" :disabled="busy">同意把已保存的描述和已确认底板发给配置的模型服务，可能产生费用。</label>
+          <label class="check"><input v-model="consent" type="checkbox" :disabled="busy">同意把已保存的描述和已确认底板发给配置的模型服务，保存请求和响应用于审核，可能产生费用。</label>
           <div class="button-row"><button type="button" class="secondary" :disabled="busy || unsaved" @click="generate">按当前底板生成本职位简历</button><button type="button" class="secondary" :disabled="busy" @click="reload">加载最新结果</button></div>
           <p v-if="generation" class="hint" role="status">{{ generation.status === 'succeeded' ? `生成任务已完成（新生成 ${generation.generated}，复用 ${generation.cached}）。点击“加载最新结果”查看。` : generation.error || `生成任务：${generation.status}` }}</p>
         </div>

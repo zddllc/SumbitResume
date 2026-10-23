@@ -16,8 +16,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import Flowable, Table, TableStyle
 
-from resume_app.documents import DocumentError, resume_entry_text
-from resume_app.models import Model, ResumeProfile
+from resume_app.documents import DocumentError, publication_details, resume_entry_text
+from resume_app.models import Model, Publication, ResumeProfile
 from resume_app.pdf.rendering import PdfFonts, paragraph, validate_profile, validate_text
 from resume_app.pdf.templates.base import ResumeTemplate
 
@@ -45,11 +45,14 @@ class Classic044Template(ResumeTemplate):
         return (
             ("PROFILE", profile.summary), ("EXPERIENCE", profile.experience),
             ("EDUCATION", profile.education), ("SKILLS", ", ".join(profile.skills)),
+            ("PUBLICATIONS", profile.publications),
             ("PROJECTS", profile.projects), ("CERTIFICATIONS", profile.certifications),
             ("LANGUAGES", profile.languages),
         )
 
     def entry_text(self, entry: Model) -> tuple[str, str, str, list[str]]:
+        if isinstance(entry, Publication):
+            return entry.title, publication_details(entry, include_date=False), entry.date, entry.details
         data = entry.model_dump()
         heading, _, bullets = resume_entry_text(entry)
         dates = " - ".join(data[key] for key in ("start_date", "end_date", "date") if data.get(key))

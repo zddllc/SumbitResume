@@ -35,16 +35,14 @@ class LLMClientTests(unittest.TestCase):
             return httpx.Response(self.status, json=self.payload)
 
         def client_factory(**kwargs):
-            return OpenAI(
-                **kwargs,
-                http_client=httpx.Client(transport=httpx.MockTransport(handle)),
-            )
+            if kwargs.get("http_client") is None:
+                kwargs["http_client"] = httpx.Client(transport=httpx.MockTransport(handle))
+            return OpenAI(**kwargs)
 
         def azure_factory(**kwargs):
-            return AzureOpenAI(
-                **kwargs,
-                http_client=httpx.Client(transport=httpx.MockTransport(handle)),
-            )
+            if kwargs.get("http_client") is None:
+                kwargs["http_client"] = httpx.Client(transport=httpx.MockTransport(handle))
+            return AzureOpenAI(**kwargs)
 
         self.openai_patch = patch("utils.llm_client.OpenAI", side_effect=client_factory)
         self.azure_patch = patch("utils.llm_client.AzureOpenAI", side_effect=azure_factory)

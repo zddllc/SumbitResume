@@ -94,8 +94,32 @@ details > summary { cursor: pointer; }
 .pagination { display: flex; align-items: center; justify-content: flex-end; gap: 15px; margin-top: 14px; }
 .editor-section { border-top: 1px solid var(--line); margin-top: 25px; padding-top: 22px; }
 .editor-section .section-heading { margin-bottom: 14px; }
+.resume-section-heading { cursor: pointer; border-radius: 8px; padding: 12px; background: #fafbfc; }
+.resume-section-heading:hover { background: var(--soft); }
+.resume-section-heading:focus-visible { outline: 3px solid #b9c8ff; outline-offset: 2px; }
+.resume-section-heading h3 { display: inline; margin: 0 10px 0 0; }
+.resume-section-heading .badge { margin-right: 12px; }
+.fold-state { float: right; color: var(--primary); font-size: 12px; }
+.resume-section > .resume-section-heading .fold-open { display: none; }
+.resume-section[open] > .resume-section-heading .fold-open { display: inline; }
+.resume-section[open] > .resume-section-heading .fold-closed { display: none; }
+.resume-section-content { margin-top: 16px; }
+.resume-preview > .resume-section { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 20px; }
 .entry { border: 1px solid var(--line); background: #fafbfc; border-radius: 10px; padding: 18px; margin-bottom: 14px; }
 .entry > .small { margin-top: 12px; }
+.import-item { border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.import-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 12px; }
+.import-option { border: 1px solid var(--line); background: #fafbfc; border-radius: 8px; padding: 14px; min-width: 0; }
+.import-option.selected { border-color: var(--primary); background: var(--soft); }
+.import-option .check { margin-top: 0; font-weight: 600; }
+.import-option dl { margin: 0; font-weight: normal; overflow-wrap: anywhere; }
+.import-option dt { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.import-option dd { margin: 0; white-space: pre-wrap; }
+.import-field { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 16px; }
+.import-item h4, .import-option h5 { margin: 0 0 10px; }
+.import-point { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 12px; margin: 12px 0; }
+.import-point.selected { border-color: var(--primary); }
+.import-point .check { font-weight: normal; margin-bottom: 8px; }
 #resume-upload > summary { font-weight: 600; cursor: pointer; }
 #resume-upload[open] > summary { margin-bottom: 18px; }
 .work-bullets { margin-top: 20px; }
@@ -136,7 +160,7 @@ dialog::backdrop { background: #12203975; backdrop-filter: blur(2px); }
     .sidebar-bottom small, .sidebar-bottom > .hint { display: none; }
     nav { display: flex; flex-wrap: wrap; margin-top: 14px; gap: 4px; }
     .nav-button { padding: 8px 10px; font-size: 12px; } .content { padding: 22px 15px; }
-    .two-column, .form-grid { grid-template-columns: 1fr; } h1 { font-size: 24px; }
+    .two-column, .form-grid, .import-columns { grid-template-columns: 1fr; } h1 { font-size: 24px; }
     .card { padding: 20px; } .page-heading > .pill { display: none; }
     .section-heading { align-items: flex-start; flex-wrap: wrap; } .job-row { flex-wrap: wrap; }
 }

@@ -57,4 +57,51 @@ describe('shared base and tailored editor', () => {
     expect(first.find('.work-bullets .section-heading button').attributes('disabled')).toBeUndefined()
     host.unmount()
   })
+  it('adds, edits and removes publication entries without mixing them into projects', async () => {
+    const { host, profile } = editor()
+    const papers = host.find('[data-section=publications]')
+    await papers.find('.section-heading button').trigger('click')
+    expect((papers.element as HTMLDetailsElement).open).toBe(true)
+    const inputs = papers.findAll('input')
+    const areas = papers.findAll('textarea')
+    await inputs[0]!.setValue('Paper title')
+    await areas[0]!.setValue('First Author\nSecond Author')
+    await inputs[1]!.setValue('Sample Conference')
+    await inputs[2]!.setValue('2025')
+    await inputs[3]!.setValue('10.1234/paper')
+    await inputs[4]!.setValue('https://example.org/paper')
+    await areas[1]!.setValue('Volume 2, pages 1-8\nEqual contribution')
+    expect(profile.value.publications).toEqual([{
+      title: 'Paper title', authors: ['First Author', 'Second Author'],
+      venue: 'Sample Conference', date: '2025', doi: '10.1234/paper',
+      url: 'https://example.org/paper', details: ['Volume 2, pages 1-8', 'Equal contribution'],
+    }])
+    expect(profile.value.projects).toEqual([])
+    await papers.find('.entry > button').trigger('click')
+    expect(profile.value.publications).toEqual([])
+    host.unmount()
+  })
+
+  it('starts secondary modules collapsed, keeps work visible and retains edits when folded', async () => {
+    const { host, profile } = editor()
+    for (const key of ['education', 'publications', 'projects', 'certifications', 'languages']) {
+      const section = host.get(`[data-section=${key}]`)
+      expect(section.element.tagName).toBe('DETAILS')
+      expect((section.element as HTMLDetailsElement).open).toBe(false)
+      expect(section.get('summary').text()).toContain('0 项')
+    }
+    expect((host.get('[data-section=experience]').element as HTMLDetailsElement).open).toBe(true)
+    const papers = host.get('[data-section=publications]')
+    await papers.get('summary').trigger('click')
+    await papers.get('.section-heading button').trigger('click')
+    await papers.get('input').setValue('Saved paper title')
+    await papers.get('summary').trigger('click')
+    await host.get('.resume-editor input').setValue('Changed applicant')
+    expect((papers.element as HTMLDetailsElement).open).toBe(false)
+    expect(papers.get('summary').text()).toContain('1 项')
+    await papers.get('summary').trigger('click')
+    expect((papers.get('input').element as HTMLInputElement).value).toBe('Saved paper title')
+    expect(profile.value.publications[0]!.title).toBe('Saved paper title')
+    host.unmount()
+  })
 })

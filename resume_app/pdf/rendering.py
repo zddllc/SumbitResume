@@ -53,7 +53,7 @@ def validate_profile(profile: ResumeProfile) -> list[str]:
     texts = list(text_values(profile.model_dump()))
     if not profile.contact.name or not any((
         profile.summary, profile.skills, profile.experience,
-        profile.education, profile.projects,
+        profile.education, profile.projects, profile.publications,
     )):
         raise DocumentError("请至少填写姓名和一项简历内容，再确认生成 PDF")
     if sum(map(len, texts)) > MAX_TEXT_LENGTH:

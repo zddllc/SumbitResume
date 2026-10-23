@@ -24,7 +24,7 @@ from resume_app.documents import DocumentError, extract_text, resume_docx
 from resume_app.errors import AppError
 from resume_app.linkedin import Candidate, LinkedInBrowser, RECOMMENDED_URL, job_id_from_url
 from resume_app.llm_workflow import apply_plan, parse_output
-from resume_app.models import JobPost, LLMSettings, ResumeProfile, TailoringPlan
+from resume_app.models import JobPost, LLMSettings, ResumeProfile, TailoringPlan, resume_cache_data
 from resume_app.storage import SecretStore, fingerprint, initialize_database
 from run import single_instance
 
@@ -356,17 +356,23 @@ class ResumeAndJobTests(ProductTestCase):
             task = self.wait_task(response.get_json()["task_id"])
         self.assertEqual(task["status"], "succeeded")
         record = self.database.resumes.find_one({"_id": "local"})
-        self.assertEqual(record["draft"]["contact"]["name"], SOURCE.contact.name)
+        self.assertEqual(record["pending_import"]["profile"]["contact"]["name"], SOURCE.contact.name)
+        self.assertNotIn("draft", record)
         self.assertNotIn("confirmed", record)
         self.assertEqual(self.post("/api/jobs/scan", {
             "limit": 1, "consent": True,
         }).status_code, 400)
+        self.assertEqual(self.post("/api/resume/import/apply", {
+            "edit_token": record["edit_token"], "import_id": record["pending_import"]["id"],
+            "profile": SOURCE.model_dump(),
+        }).status_code, 200)
+        record = self.database.resumes.find_one({"_id": "local"})
         self.assertEqual(self.post("/api/resume/confirm", {
             "edit_token": record["edit_token"], "profile": SOURCE.model_dump(),
         }).status_code, 200)
         stored = self.database.resumes.find_one({"_id": "local"})
         self.assertIsNone(stored["draft"])
-        self.assertEqual(stored["confirmed_hash"], fingerprint(SOURCE.model_dump()))
+        self.assertEqual(stored["confirmed_hash"], fingerprint(resume_cache_data(SOURCE)))
 
     def test_upload_file_size_limit_excludes_multipart_overhead(self):
         limit = 10 * 1024 * 1024
@@ -385,7 +391,7 @@ class ResumeAndJobTests(ProductTestCase):
             self.assertEqual(rejected.status_code, 413)
             self.assertEqual(extract.call_count, 1)
 
-    def test_new_draft_does_not_replace_confirmed_source_and_stale_confirmation_fails(self):
+    def test_new_upload_does_not_replace_confirmed_source_and_requires_comparison(self):
         self.confirmed()
         before = self.database.resumes.find_one({"_id": "local"})
         with patch.object(self.workflow, "_complete", return_value=SOURCE.model_dump_json()):
@@ -485,7 +491,7 @@ class ResumeAndJobTests(ProductTestCase):
         source.experience[0].bullets = ["First point", "Middle point", "Last point"]
         settings = self.workflow.llm_settings("local")
 
-        def complete(_settings, prompt, _system):
+        def complete(_settings, prompt, _system, **_kwargs):
             bullets = json.loads(prompt)["confirmed_resume"]["experience"][0]["bullets"]
             return json.dumps({
                 **PLAN, "experience": [{"source_index": 0, "bullets": [

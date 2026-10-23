@@ -49,7 +49,7 @@ async function changed() { await run(async () => { await loadJobs(); await loadT
     <article class="card"><span class="step-number">01 / CONNECT</span><h2>登录 LinkedIn</h2><p>Chrome 打开在运行后端的机器上。部署到 113 后，请进入 113 的 Linux 桌面完成登录和安全验证。</p><button :disabled="busy" @click="openBrowser">打开受控 Chrome</button><p class="hint">登录状态保存在后端独立目录，不读取访问者电脑的 Chrome 配置。</p></article>
     <article class="card"><span class="step-number">02 / DISCOVER &amp; TAILOR</span><h2>遍历推荐职位</h2>
       <label>单次职位上限（1–100）<input v-model.number="limit" type="number" min="1" max="100"></label>
-      <label class="check"><input v-model="consent" type="checkbox">同意把已确认底板和职位描述发给配置的模型服务。</label>
+      <label class="check"><input v-model="consent" type="checkbox">同意把已确认底板和职位描述发给配置的模型服务，并保存请求和响应用于审核。</label>
       <button :disabled="busy" @click="scan">开始遍历与定制</button><p class="hint">会产生模型费用。外站入口采集可能打开临时标签页；不填写、不提交申请。</p>
     </article>
   </div>

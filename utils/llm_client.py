@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from types import TracebackType
 from typing import Literal
 
+import httpx
 from openai import AzureOpenAI, OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
@@ -48,6 +49,7 @@ class LLMClient:
         api_version: str = "2024-12-01-preview",
         timeout: float = 300,
         max_retries: int = 0,
+        http_client: httpx.Client | None = None,
     ) -> None:
         if provider not in _PROVIDERS:
             raise ValueError(f"Unsupported LLM provider: {provider}")
@@ -79,6 +81,7 @@ class LLMClient:
                 api_version=api_version,
                 timeout=timeout,
                 max_retries=max_retries,
+                http_client=http_client,
             )
         else:
             self._client = OpenAI(
@@ -86,6 +89,7 @@ class LLMClient:
                 base_url=base_url or _DEFAULT_BASE_URLS.get(provider),
                 timeout=timeout,
                 max_retries=max_retries,
+                http_client=http_client,
             )
 
     def complete(

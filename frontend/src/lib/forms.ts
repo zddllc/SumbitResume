@@ -11,7 +11,7 @@ export function useUnsavedGuard(dirty: Ref<boolean>) {
   onBeforeRouteLeave(() => !auth.user || !dirty.value || window.confirm('表单有未保存修改，是否离开？'))
 }
 export function emptyResume(): ResumeProfile {
-  return { contact: { name: '', email: '', phone: '', location: '', linkedin: '', website: '' }, summary: '', skills: [], experience: [], education: [], projects: [], certifications: [], languages: [] }
+  return { contact: { name: '', email: '', phone: '', location: '', linkedin: '', website: '' }, summary: '', skills: [], experience: [], education: [], publications: [], projects: [], certifications: [], languages: [] }
 }
 export function useAction() {
   const busy = ref(false)

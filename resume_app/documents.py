@@ -11,7 +11,7 @@ from lxml.etree import XMLSyntaxError
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
-from resume_app.models import Model, ResumeProfile
+from resume_app.models import Model, Publication, ResumeProfile
 
 
 MAX_TEXT_LENGTH = 80000
@@ -64,12 +64,22 @@ def extract_text(filename: str, content: bytes) -> str:
 def resume_sections(profile: ResumeProfile) -> tuple[tuple[str, Sequence[Model]], ...]:
     return (
         ("Experience", profile.experience), ("Education", profile.education),
+        ("Publications", profile.publications),
         ("Projects", profile.projects), ("Certifications", profile.certifications),
         ("Languages", profile.languages),
     )
 
 
+def publication_details(entry: Publication, *, include_date: bool = True) -> str:
+    return " | ".join(value for value in (
+        ", ".join(entry.authors), entry.venue, entry.date if include_date else "",
+        "DOI: " + entry.doi if entry.doi else "", entry.url,
+    ) if value)
+
+
 def resume_entry_text(entry: Model) -> tuple[str, str, list[str]]:
+    if isinstance(entry, Publication):
+        return entry.title, publication_details(entry), entry.details
     data = entry.model_dump()
     heading = " | ".join(
         data[key] for key in (
@@ -103,7 +113,8 @@ def resume_docx(profile: ResumeProfile) -> BytesIO:
         document.add_heading(title, 1)
         for entry in entries:
             heading, detail, bullets = resume_entry_text(entry)
-            document.add_heading(heading, 2)
+            if heading:
+                document.add_heading(heading, 2)
             if detail:
                 document.add_paragraph(detail)
             for bullet in bullets:

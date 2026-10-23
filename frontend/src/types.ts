@@ -4,15 +4,17 @@ export type Education = { institution: string; degree: string; field: string; st
 export type Project = { name: string; url: string; bullets: string[] }
 export type Certification = { name: string; issuer: string; date: string }
 export type Language = { name: string; proficiency: string }
+export type Publication = { title: string; authors: string[]; venue: string; date: string; doi: string; url: string; details: string[] }
 export type ResumeProfile = {
   contact: Contact; summary: string; skills: string[]; experience: Experience[]
-  education: Education[]; projects: Project[]; certifications: Certification[]; languages: Language[]
+  education: Education[]; publications: Publication[]; projects: Project[]; certifications: Certification[]; languages: Language[]
 }
 export type User = { id?: string; name: string; email: string }
 export type Session = { user: User | null; setup_required: boolean; csrf_token: string }
 export type ResumeRecord = {
   id: string; draft?: ResumeProfile | null; confirmed?: ResumeProfile
   edit_token: string; draft_filename?: string; confirmed_at?: string; confirmed_hash?: string
+  pending_import?: { id: string; profile: ResumeProfile; filename: string; created_at: string } | null
 }
 export type Answer = 'unspecified' | 'yes' | 'no' | 'decline'
 export type PersonalInfo = {
