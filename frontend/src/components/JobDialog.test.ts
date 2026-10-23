@@ -20,7 +20,7 @@ const catalog: TemplateCatalog = {
   ],
 }
 
-async function mountEditor(overrides: Partial<TailoredResume> = {}) {
+async function mountEditor(overrides: Partial<TailoredResume> = {}, templates: TemplateCatalog = catalog) {
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
     configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', '') },
   })
@@ -39,7 +39,7 @@ async function mountEditor(overrides: Partial<TailoredResume> = {}) {
     review_status: 'pending', job, resume: profile, source_resume: structuredClone(profile),
     edit_token: 'token', application: { kind: 'unavailable' }, pdf_ready: false, ...overrides,
   }
-  vi.mocked(api).mockResolvedValueOnce(catalog).mockResolvedValueOnce({ job, versions: [loaded] }).mockResolvedValueOnce(loaded)
+  vi.mocked(api).mockResolvedValueOnce(templates).mockResolvedValueOnce({ job, versions: [loaded] }).mockResolvedValueOnce(loaded)
   const page = defineComponent({ components: { JobDialog }, template: '<JobDialog job-id="123" />' })
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: page }] })
   await router.push('/')
@@ -67,6 +67,26 @@ describe('job editor and PDF templates', () => {
     expect(host.findAll('.template-preview img')).toHaveLength(0)
     expect(host.findAll('.template-preview')).toHaveLength(2)
     expect(host.text()).not.toContain('模板已更换')
+    host.unmount()
+  })
+
+  it('renders the added 000 template from the catalog and submits that choice without changing the default', async () => {
+    const templates: TemplateCatalog = {
+      ...catalog, items: [...catalog.items, { id: 'serif-000', name: '衬线履历 · 000', description: '下划线标题', preview_url: null }],
+    }
+    const { host, loaded } = await mountEditor({}, templates)
+    expect((host.get('input[value="classic-044"]').element as HTMLInputElement).checked).toBe(true)
+    expect(host.findAll('.template-option')).toHaveLength(3)
+    await host.get('input[value="serif-000"]').setValue()
+    await host.get('form .check input').setValue(true)
+    const saved = structuredClone(loaded)
+    saved.template_id = 'serif-000'
+    saved.pdf_ready = true
+    vi.mocked(api).mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce(saved)
+    await host.get('form').trigger('submit')
+    await flushPromises()
+    expect(api).toHaveBeenCalledWith('tailored/version/review', 'POST', expect.objectContaining({ template_id: 'serif-000' }))
+    expect(host.find('a[download]').exists()).toBe(true)
     host.unmount()
   })
 

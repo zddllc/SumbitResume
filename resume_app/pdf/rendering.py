@@ -101,9 +101,10 @@ class PdfFonts:
     regular: TTFont
     bold: TTFont
     fallback: TTFont
+    italic: TTFont | None = None
 
-    def markup(self, text: str, *, bold: bool = False) -> str:
-        primary = self.bold if bold else self.regular
+    def markup(self, text: str, *, bold: bool = False, italic: bool = False) -> str:
+        primary = self.bold if bold else self.italic if italic and self.italic is not None else self.regular
         text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\t", "    ")
 
         def choose(character: str) -> str:
@@ -136,15 +137,23 @@ def load_fonts(configured: str | Path | None = None, *, serif: bool = False) -> 
         )
         for regular, bold in candidates:
             if regular.is_file() and bold.is_file():
-                return PdfFonts(registered_font(str(regular)), registered_font(str(bold)), fallback)
+                italic_name = {
+                    "gara.ttf": "garait.ttf", "times.ttf": "timesi.ttf",
+                    "LiberationSerif-Regular.ttf": "LiberationSerif-Italic.ttf",
+                }[regular.name]
+                italic = regular.with_name(italic_name)
+                return PdfFonts(
+                    registered_font(str(regular)), registered_font(str(bold)), fallback,
+                    registered_font(str(italic)) if italic.is_file() else None,
+                )
     return PdfFonts(fallback, fallback, fallback)
 
 
 def paragraph(
     text: str, style: ParagraphStyle, fonts: PdfFonts, *,
-    bold: bool = False, bullet: str | None = None,
+    bold: bool = False, italic: bool = False, bullet: str | None = None,
 ) -> Paragraph:
-    return Paragraph(fonts.markup(text, bold=bold), style, bulletText=bullet)
+    return Paragraph(fonts.markup(text, bold=bold, italic=italic), style, bulletText=bullet)
 
 
 def normalized_text(text: str) -> str:

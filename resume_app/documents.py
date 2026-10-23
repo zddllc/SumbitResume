@@ -70,9 +70,11 @@ def resume_sections(profile: ResumeProfile) -> tuple[tuple[str, Sequence[Model]]
     )
 
 
-def publication_details(entry: Publication, *, include_date: bool = True) -> str:
+def publication_details(
+    entry: Publication, *, include_date: bool = True, include_authors: bool = True,
+) -> str:
     return " | ".join(value for value in (
-        ", ".join(entry.authors), entry.venue, entry.date if include_date else "",
+        ", ".join(entry.authors) if include_authors else "", entry.venue, entry.date if include_date else "",
         "DOI: " + entry.doi if entry.doi else "", entry.url,
     ) if value)
 

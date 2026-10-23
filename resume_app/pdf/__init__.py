@@ -8,11 +8,12 @@ from resume_app.pdf.rendering import validate_pdf, validate_profile
 from resume_app.pdf.templates.base import ResumeTemplate
 from resume_app.pdf.templates.classic_044 import Classic044Template
 from resume_app.pdf.templates.simple import SimpleTemplate
+from resume_app.pdf.templates.serif_000 import Serif000Template
 
 
 DEFAULT_TEMPLATE_ID = "classic-044"
 LEGACY_TEMPLATE_ID = "simple"
-TEMPLATES: tuple[ResumeTemplate, ...] = (Classic044Template(), SimpleTemplate())
+TEMPLATES: tuple[ResumeTemplate, ...] = (Classic044Template(), Serif000Template(), SimpleTemplate())
 
 
 def get_template(template_id: object) -> ResumeTemplate:

@@ -152,18 +152,24 @@ resume_app/pdf/
   templates/
     base.py                # 共同渲染流程、模板版本与布局接口
     classic_044.py         # 044 的排版规则、字段映射和兼容 Word 导出
+    serif_000.py           # 000 的衬线正文、下划线章节和紧凑论文排版
     simple.py              # 原有简洁单栏版式
   references/
     044.docx               # 仅供开发时对照，不参与运行
+    000.docx               # 本地提供版式的占位示例，不包含真实个人简历
 ```
 
 默认 [Classic044Template](resume_app/pdf/templates/classic_044.py) 保留 044 的衬线字体、A4 页面、居中姓名、灰色章节条和日期 / 经历分栏，正文及长要点可跨页。缺少内容的章节不输出；所有已确认的联系信息、技能、经历、教育、项目、证书和语言均参与生成，不调用模型补写事实。[参考 Word](resume_app/pdf/references/044.docx) 保存在仓库中，方便以后修改模板类时对照；只修改参考文件不会改变实际 PDF。
 
+新增 **衬线履历 · 000**（`serif-000`），由 [Serif000Template](resume_app/pdf/templates/serif_000.py) 生成。参考本地提供的 Word：A4，正文左右 54 pt、上下 72 pt 留白；Garamond 11.5 pt 正文、14 pt 姓名、15 pt Times 下划线章节标题和 10 pt 论文正文。顶部使用姓名 / 邮箱、链接 / 联系信息及细横线，工作经历为单栏的职位、单位 / 日期和独立要点。所有结构化章节及论文信息均保留；没有额外加入目标职位标签。
+
+[000.docx](resume_app/pdf/references/000.docx) 是采用该版式重新生成的占位示例，仅含虚构资料，不复制真实简历文字、联系方式、链接或文档元数据，也不修改原始文件。原稿的负右缩进和手工空格对齐没有照搬，改用固定留白与可换行布局，避免动态内容越界；不同系统使用可用的衬线字体 / Unicode 后备字体。000 的 PDF 和兼容 Word 均由代码直接生成，不在运行时读取参考文件或依赖 Office。现有 044、简洁单栏、默认选择及已保存 PDF 均保持不变。
+
 - 前端从 `GET /api/resume-templates` 获取模板列表和默认项；预览图目前为 `null`，显示占位区域。选择后的 `template_id` 与最新编辑的 `profile` 一起提交确认接口。
 - 切换模板会清除前端核对勾选并隐藏旧 PDF 入口，需要重新确认生成；失败时不覆盖之前的内容和文件，也不会偷偷退回旧版式。
-- `PDF_FONT_PATH` 是所有模板的 Unicode 字体 / 后备字体配置。044 的西文优先使用 Windows Garamond / Times，Linux 使用 Liberation Serif；中文按字符使用可嵌入的 Unicode 后备字体。缺字明确报错，不以其他版式掩盖。
+- `PDF_FONT_PATH` 是所有模板的 Unicode 字体 / 后备字体配置。044 / 000 的西文正文优先使用 Windows Garamond / Times，Linux 使用 Liberation Serif；000 的职位行优先使用对应斜体。中文按字符使用可嵌入的 Unicode 后备字体，缺字明确报错，不以其他版式掩盖。
 - 输出会检查 PDF 文字完整性。确认保存、内容指纹、模板指纹与文件 SHA-256 的逻辑共用；旧的 Word 转换产物和无模板元数据的历史文件仍按原字节下载，不强制重新生成。
-- 兼容的 Word 下载也由模板类用代码创建，保留 044 的主要版式，不读取参考文件；它不是生成 PDF 的中间步骤。
+- 兼容的 Word 下载也由模板类用代码创建，保留所选模板的主要版式，不读取参考文件；它不是生成 PDF 的中间步骤。
 
 新增模板：继承 [ResumeTemplate](resume_app/pdf/templates/base.py)，实现该设计的 `story()`，声明稳定的 `id`、名称、版本和版面参数，再将实例加入 [TEMPLATES](resume_app/pdf/__init__.py)。需要特殊 Word 导出版式时重写 `render_docx()`，否则沿用通用 Word 导出。新模板不需要修改确认、存储或下载流程。修改影响输出的模板代码时应递增 `version`；保存的 `template_hash` 来自模板 ID / 实现版本，而不是参考 DOCX 的文件哈希。
 
