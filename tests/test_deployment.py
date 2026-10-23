@@ -12,7 +12,7 @@ from mongomock.gridfs import enable_gridfs_integration
 from resume_app import create_app
 from resume_app.config import base_path, load_config
 from resume_app.models import ResumeProfile
-from resume_app.pdf_export import _font_path
+from resume_app.pdf.rendering import font_path
 from resume_app.storage import SecretStore
 
 enable_gridfs_integration()
@@ -78,7 +78,7 @@ class DeploymentTests(unittest.TestCase):
         })
         response = self.request(
             "POST", "/resume/api/tailored/prefix-resume/review",
-            json={"confirmed": True, "edit_token": "first-token", "profile": profile.model_dump()},
+            json={"confirmed": True, "edit_token": "first-token", "profile": profile.model_dump(), "template_id": "simple"},
             headers={"X-CSRF-Token": session["csrf_token"]},
         )
         self.assertEqual(response.status_code, 200, response.get_json())
@@ -121,10 +121,10 @@ class DeploymentTests(unittest.TestCase):
 
     def test_linux_font_candidate_is_not_a_windows_path_dependency(self):
         with (
-            patch("resume_app.pdf_export.sys.platform", "linux"),
+            patch("resume_app.pdf.rendering.sys.platform", "linux"),
             patch.object(Path, "is_file", lambda path: path.name == "wqy-zenhei.ttc"),
         ):
-            self.assertEqual(_font_path(None).name, "wqy-zenhei.ttc")
+            self.assertEqual(font_path(None).name, "wqy-zenhei.ttc")
 
     def test_private_environment_file_is_parsed_without_shell_execution(self):
         path = Path(self.temp.name) / "private.env"

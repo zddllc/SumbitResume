@@ -30,7 +30,9 @@ export type Task = {
   error?: string | null; errors: { job_id: string; message: string }[]
 }
 export type ApplicationInfo = { kind: 'external' | 'easy_apply' | 'unavailable'; url?: string | null; error?: string | null }
-export type PdfArtifact = { file_id: string; sha256: string; profile_hash: string; size: number; created_at: string }
+export type ResumeTemplate = { id: string; name: string; description: string; preview_url: string | null }
+export type TemplateCatalog = { default_template_id: string; items: ResumeTemplate[] }
+export type PdfArtifact = { file_id: string; sha256: string; profile_hash: string; size: number; created_at: string; template_id?: string; template_hash?: string }
 export type ResumeVersion = { id: string; created_at: string; llm: { model: string }; review_status: string; pdf?: PdfArtifact }
 export type Job = {
   id: string; linkedin_id: string; url: string; title: string; company: string; location: string
@@ -40,6 +42,7 @@ export type Job = {
 export type TailoredResume = ResumeVersion & {
   job: Job & { description: string }; resume: ResumeProfile; source_resume: ResumeProfile
   edit_token: string; application: ApplicationInfo; pdf_ready: boolean; reviewed_at?: string
+  template_id?: string
 }
 export type AppState = {
   user: User; resume: ResumeRecord | null; personal: PersonalInfo

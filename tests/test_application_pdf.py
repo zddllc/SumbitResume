@@ -13,8 +13,8 @@ from resume_app.documents import DocumentError
 from resume_app.errors import AppError
 from resume_app.linkedin import LinkedInBrowser, RECOMMENDED_URL, clean_application_url
 from resume_app.models import JobPost, ResumeProfile
-from resume_app.pdf_export import resume_pdf
-from resume_app.pdf_storage import pdf_files, store_pdf
+from resume_app.pdf.storage import pdf_files, store_pdf
+from resume_app.pdf.templates.simple import SimpleTemplate
 from test_product import JOB, PLAN, SOURCE, ProductTestCase
 
 
@@ -152,6 +152,7 @@ class ConfirmedPdfTests(ProductTestCase):
         return self.post(f"/api/tailored/{self.resume_id}/review", {
             "confirmed": True, "edit_token": record["edit_token"],
             "profile": profile or record["resume"],
+            "template_id": "simple",
         })
 
     def test_edit_confirm_pdf_is_persisted_and_downloaded_without_model_or_base_changes(self):
@@ -199,7 +200,7 @@ class ConfirmedPdfTests(ProductTestCase):
 
     def test_pdf_failure_does_not_mark_reviewed_or_overwrite_resume(self):
         before = self.detail()
-        with patch("resume_app.web.resume_pdf", side_effect=DocumentError("Synthetic font failure")):
+        with patch.object(SimpleTemplate, "render", side_effect=DocumentError("Synthetic font failure")):
             response = self.approve(before)
         self.assertEqual(response.status_code, 400)
         after = self.detail()
@@ -209,8 +210,8 @@ class ConfirmedPdfTests(ProductTestCase):
         self.assertEqual(self.database["resume_pdfs.files"].count_documents({}), 0)
 
     def test_concurrent_change_removes_only_the_unclaimed_new_pdf(self):
-        def race(db, user, resume_id, file_id, profile_hash, content):
-            artifact = store_pdf(db, user, resume_id, file_id, profile_hash, content)
+        def race(db, user, resume_id, file_id, profile_hash, content, **kwargs):
+            artifact = store_pdf(db, user, resume_id, file_id, profile_hash, content, **kwargs)
             db.tailored_resumes.update_one(
                 {"_id": resume_id}, {"$set": {"edit_token": "changed-concurrently"}}
             )
@@ -339,7 +340,7 @@ class PdfRendererTests(unittest.TestCase):
         profile = SOURCE.model_copy(deep=True)
         profile.contact.name = "张三 Example"
         profile.summary = "软件工程师 <script>not code</script> & Python"
-        content = resume_pdf(profile)
+        content = SimpleTemplate().render(profile)
         self.assertTrue(content.startswith(b"%PDF-"))
         text = "\n".join(page.extract_text() for page in PdfReader(BytesIO(content)).pages)
         self.assertIn("张三", text)
@@ -349,23 +350,23 @@ class PdfRendererTests(unittest.TestCase):
     def test_missing_font_blank_resume_and_unsupported_characters_are_explicit_errors(self):
         with tempfile.TemporaryDirectory() as temp:
             with self.assertRaises(DocumentError):
-                resume_pdf(SOURCE, Path(temp) / "missing-font.ttf")
+                SimpleTemplate().render(SOURCE, font_path=Path(temp) / "missing-font.ttf")
         with self.assertRaises(DocumentError):
-            resume_pdf(ResumeProfile())
+            SimpleTemplate().render(ResumeProfile())
         unsupported = SOURCE.model_copy(deep=True)
         unsupported.summary = "\U0010ffff"
         with self.assertRaises(DocumentError):
-            resume_pdf(unsupported)
+            SimpleTemplate().render(unsupported)
 
     def test_pdf_text_size_boundary_is_exact(self):
         profile = ResumeProfile.model_validate({
             "contact": {"name": "A"},
             "experience": [{"bullets": ["x" * 10000] * 7 + ["x" * 9999]}],
         })
-        self.assertTrue(resume_pdf(profile).startswith(b"%PDF-"))
+        self.assertTrue(SimpleTemplate().render(profile).startswith(b"%PDF-"))
         profile.experience[0].bullets[-1] += "x"
         with self.assertRaises(DocumentError):
-            resume_pdf(profile)
+            SimpleTemplate().render(profile)
 
 
 if __name__ == "__main__":

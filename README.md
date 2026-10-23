@@ -67,7 +67,7 @@ Nginx 保留完整 `/resume/api/` URI 转发，后端自身挂载在 `/resume`�
 5. **打开受控 Chrome**，在后端桌面手动登录 LinkedIn。
 6. **遍历推荐职位**：设置单次上限 1–100，授权后读取职位描述与申请入口，按底板生成结构化职位简历。
 7. 在职位详情编辑这份职位简历，工作要点支持增删、修改和上移 / 下移。越靠前表示越重要、越新，不据此推断具体日期。
-8. **确认并生成 PDF**，查看 / 下载实际已保存文件，之后从已保存申请链接出发。也可以直接使用数据库中的职位描述生成或重试，不再访问 LinkedIn。
+8. 在职位详情选择 **投递 PDF 模板**（默认“经典灰条 · 044”），再 **确认并生成 PDF**，查看 / 下载实际已保存文件，之后从已保存申请链接出发。也可以直接使用数据库中的职位描述生成或重试，不再访问 LinkedIn。
 
 底板与职位简历使用同一 Vue 编辑组件，但数据副本互相隔离；修改职位简历不覆盖全局底板。修改后必须确认保存，未确认编辑不进入投递文件。
 
@@ -87,12 +87,48 @@ MongoDB 集合包括 `users`、`resumes`、`llm_settings`、`credentials`、`job
 - 新上传草稿不覆盖旧的已确认底板。任务使用启动时的底板和模型配置快照。
 - 推荐列表左侧点击后校验右侧职位 ID，避免拿到上一职位描述。外站入口采集会短暂打开独立标签页，不关闭用户已有页面、不填写表单。
 - 对外站 Apply，保存真实落地页及可识别的 Apply now 链接。Easy Apply 标为 LinkedIn 站内申请，不伪造外站链接。
-- 用户确认职位简历后生成单栏、可选择文字、嵌入字体的 PDF，实际字节存入 GridFS，并绑定用户、简历版本、内容指纹和 SHA-256。
+- 用户确认职位简历后按所选模板生成可选择文字的 PDF，实际字节存入 GridFS，并绑定用户、简历版本、内容指纹、模板 ID / 指纹和 SHA-256。
 - 下载返回同一份已确认文件，不重新渲染。修改后再次确认生成新 PDF；冲突、缺字、排版或存储失败不会冒充确认成功。
-- 后续投递应通过 [read_confirmed_pdf](resume_app/pdf_storage.py) 读取匹配当前确认内容的文件。目前不自动登录外站、上传或提交申请。
+- 后续投递应通过 [read_confirmed_pdf](resume_app/pdf/storage.py) 读取匹配当前确认内容的文件。目前不自动登录外站、上传或提交申请。
 - 任务可请求取消；当前浏览器 / API 操作完成后才生效。重启会把未完成任务标为中断，已保存结果可复用。
 
-原 Word 导出 API 保留用于兼容，界面和后续投递主流程使用 PDF。
+原 Word 导出 API 保留用于兼容，并使用对应已选模板；界面和后续投递主流程使用 PDF。旧的已确认 PDF 仍可下载，不自动改版或重新渲染。
+
+### 模板类与 PDF 代码组织
+
+每个设计对应一个模板类，由类定义页面、字体、章节顺序、字段映射、灰条 / 分栏和续页规则。运行时按模板 ID 选择类，直接用 ReportLab 生成 PDF，**不读取参考 Word，不生成中间 DOCX，也不启动 Word / LibreOffice**。不需要安装 Office 或配置 `OFFICE_CONVERTER` / `LIBREOFFICE_PATH`，旧环境文件中这些配置已不使用。
+
+PDF 相关代码统一放在 [resume_app/pdf](resume_app/pdf)：
+
+```text
+resume_app/pdf/
+  __init__.py              # 模板注册、列表与导出入口
+  rendering.py             # 字体、文字校验、段落与输出完整性检查
+  storage.py               # 已确认文件的 GridFS 存储与读取
+  templates/
+    base.py                # 共同渲染流程、模板版本与布局接口
+    classic_044.py         # 044 的排版规则、字段映射和兼容 Word 导出
+    simple.py              # 原有简洁单栏版式
+  references/
+    044.docx               # 仅供开发时对照，不参与运行
+```
+
+默认 [Classic044Template](resume_app/pdf/templates/classic_044.py) 保留 044 的衬线字体、A4 页面、居中姓名、灰色章节条和日期 / 经历分栏，正文及长要点可跨页。缺少内容的章节不输出；所有已确认的联系信息、技能、经历、教育、项目、证书和语言均参与生成，不调用模型补写事实。[参考 Word](resume_app/pdf/references/044.docx) 保存在仓库中，方便以后修改模板类时对照；只修改参考文件不会改变实际 PDF。
+
+- 前端从 `GET /api/resume-templates` 获取模板列表和默认项；预览图目前为 `null`，显示占位区域。选择后的 `template_id` 与最新编辑的 `profile` 一起提交确认接口。
+- 切换模板会清除前端核对勾选并隐藏旧 PDF 入口，需要重新确认生成；失败时不覆盖之前的内容和文件，也不会偷偷退回旧版式。
+- `PDF_FONT_PATH` 是所有模板的 Unicode 字体 / 后备字体配置。044 的西文优先使用 Windows Garamond / Times，Linux 使用 Liberation Serif；中文按字符使用可嵌入的 Unicode 后备字体。缺字明确报错，不以其他版式掩盖。
+- 输出会检查 PDF 文字完整性。确认保存、内容指纹、模板指纹与文件 SHA-256 的逻辑共用；旧的 Word 转换产物和无模板元数据的历史文件仍按原字节下载，不强制重新生成。
+- 兼容的 Word 下载也由模板类用代码创建，保留 044 的主要版式，不读取参考文件；它不是生成 PDF 的中间步骤。
+
+新增模板：继承 [ResumeTemplate](resume_app/pdf/templates/base.py)，实现该设计的 `story()`，声明稳定的 `id`、名称、版本和版面参数，再将实例加入 [TEMPLATES](resume_app/pdf/__init__.py)。需要特殊 Word 导出版式时重写 `render_docx()`，否则沿用通用 Word 导出。新模板不需要修改确认、存储或下载流程。修改影响输出的模板代码时应递增 `version`；保存的 `template_hash` 来自模板 ID / 实现版本，而不是参考 DOCX 的文件哈希。
+
+运行模板检查（仅用合成简历，不访问生产数据库或模型，无需 Office）：
+
+```powershell
+$env:PYTHONPATH = "$PWD\tests"
+& $python -m unittest test_resume_templates -v
+```
 
 ## 迁移与隐私
 

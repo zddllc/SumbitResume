@@ -17,13 +17,15 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from resume_app.documents import MAX_UPLOAD_BYTES, DocumentError, extract_text, resume_docx
+from resume_app.documents import MAX_UPLOAD_BYTES, DocumentError, extract_text
 from resume_app.errors import AppError
 from resume_app.models import (
     CredentialInput, LLMSettings, LoginInput, PersonalInfo, ResumeProfile, SetupInput,
 )
-from resume_app.pdf_export import resume_pdf
-from resume_app.pdf_storage import pdf_files, pdf_ready, read_confirmed_pdf, store_pdf
+from resume_app.pdf import (
+    DEFAULT_TEMPLATE_ID, LEGACY_TEMPLATE_ID, template_catalog, template_docx, template_pdf,
+)
+from resume_app.pdf.storage import pdf_files, pdf_ready, read_confirmed_pdf, store_pdf
 from resume_app.storage import fingerprint, now
 
 
@@ -460,6 +462,12 @@ def get_tailored(resume_id):
     return jsonify(public(stored))
 
 
+@web.get("/api/resume-templates")
+@require_user
+def get_resume_templates():
+    return jsonify(template_catalog())
+
+
 @web.post("/api/tailored/<resume_id>/review")
 @require_user
 def review_tailored(resume_id):
@@ -471,13 +479,17 @@ def review_tailored(resume_id):
         raise AppError("这份定制简历已更新，请重新加载后核对，避免覆盖其他修改", 409)
     profile = ResumeProfile.model_validate(data.get("profile", stored["resume"]))
     try:
-        content = resume_pdf(profile, current_app.config["PDF_FONT_PATH"])
+        content, template = template_pdf(
+            profile, data.get("template_id", DEFAULT_TEMPLATE_ID),
+            job_title=stored["job"].get("title", ""),
+            font_path=current_app.config["PDF_FONT_PATH"],
+        )
     except DocumentError as error:
         raise AppError(str(error)) from error
     file_id = uuid4().hex
     artifact = store_pdf(
         db(), g.user["_id"], resume_id, file_id,
-        fingerprint(profile.model_dump()), content,
+        fingerprint(profile.model_dump()), content, template=template,
     )
     token = uuid4().hex
     updated = db().tailored_resumes.update_one(
@@ -485,6 +497,7 @@ def review_tailored(resume_id):
         {"$set": {
             "resume": profile.model_dump(), "review_status": "reviewed",
             "reviewed_at": now(), "edit_token": token, "pdf": artifact,
+            "template_id": template["template_id"],
         }},
     )
     if not updated.matched_count:
@@ -509,8 +522,18 @@ def download_pdf(resume_id):
 @require_user
 def download_tailored(resume_id):
     stored = owned_tailored(resume_id)
+    profile = ResumeProfile.model_validate(stored["resume"])
+    try:
+        document = BytesIO(template_docx(
+            profile, stored.get(
+                "template_id",
+                LEGACY_TEMPLATE_ID if stored.get("review_status") == "reviewed" else DEFAULT_TEMPLATE_ID,
+            ), job_title=stored["job"].get("title", ""),
+        ))
+    except DocumentError as error:
+        raise AppError(str(error)) from error
     return send_file(
-        resume_docx(ResumeProfile.model_validate(stored["resume"])),
+        document,
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         as_attachment=True, download_name=f"resume-{stored['job']['linkedin_id']}.docx",
     )

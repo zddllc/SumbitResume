@@ -19,10 +19,12 @@ cd ~/apps/SumbitResume
 python3.11 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 sudo apt-get update
-sudo apt-get install -y nginx fonts-wqy-zenhei
+sudo apt-get install -y nginx fonts-wqy-zenhei fonts-liberation
 ```
 
 安装 Google Chrome，或发行版 Chromium 与匹配的 ChromeDriver。自定义 / ARM 环境建议明确设置 `CHROME_PATH`、`CHROMEDRIVER_PATH`。不要为了 root 运行而添加 `--no-sandbox`；使用登录桌面的普通用户。
+
+默认投递 PDF 使用代码中的 044 模板类直接生成，不需要安装 Word / LibreOffice，也不读取仓库中的参考 DOCX。`PDF_FONT_PATH` 为所有模板配置 Unicode 后备字体，044 的西文使用 Liberation Serif。Windows 默认优先使用 Garamond / Times；需要完全一致的字体效果时，应依法安装并在模板字体选择中配置同一套字体。旧的 `OFFICE_CONVERTER` / `LIBREOFFICE_PATH` 配置已不使用。
 
 从 **113 的桌面终端** 执行：
 
@@ -145,6 +147,7 @@ sudo systemctl reload nginx
 - **Linux 没有 DISPLAY**：后端不在桌面会话中；先从桌面终端启动，再正确导入用户服务环境。
 - **缺少原密钥而拒绝启动**：恢复原密钥，不要删除数据库中的加密信息来规避检查。
 - **PDF 字体缺字**：安装可嵌入的 TrueType 中文字体并配置 `PDF_FONT_PATH`；不要把不兼容的 CFF 字体当作 TTF 使用。
+- **PDF 排版失败 / 文字缺失**：检查中英文字体与 `PDF_FONT_PATH`；不要以旧版式静默替代。可运行 `PYTHONPATH=tests .venv/bin/python -m unittest test_resume_templates -v` 验证模板类、多页中英文及已确认文件的读写，无需 Office。
 - **ChromeDriver 不匹配**：安装匹配驱动或允许 Selenium Manager 下载；保持普通用户和沙箱。
 - **搜索 / 推荐 UI 变化**：选择器在 [linkedin.py](../resume_app/linkedin.py)，安全验证仍需手工完成。
 

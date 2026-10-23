@@ -456,6 +456,7 @@ class ResumeAndJobTests(ProductTestCase):
         self.assertIn(SOURCE.contact.name, "\n".join(p.text for p in generated.paragraphs))
         self.assertEqual(self.post(f"/api/tailored/{resume_id}/review", {
             "confirmed": True, "edit_token": stored["edit_token"],
+            "template_id": "simple",
         }).status_code, 200)
         self.assertEqual(self.client.get(f"/api/tailored/{resume_id}").get_json()["review_status"], "reviewed")
 

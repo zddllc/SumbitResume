@@ -22,7 +22,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .danger { color: var(--danger); }
 .small { padding: 6px 12px; font-size: 13px; }
 a { color: var(--primary); }
-input:not([type=checkbox]), select, textarea {
+input:not([type=checkbox]):not([type=radio]), select, textarea {
     width: 100%; border: 1px solid #d6dce5; padding: 10px 12px; background: white;
     border-radius: 8px; margin-top: 6px; color: var(--text); min-width: 0;
 }
@@ -114,6 +114,12 @@ dialog::backdrop { background: #12203975; backdrop-filter: blur(2px); }
 .resume-preview h1 { font-size: 22px; }
 .resume-preview p { white-space: pre-wrap; }
 .resume-preview li { white-space: pre-wrap; overflow-wrap: anywhere; }
+.template-picker legend { font-weight: 600; margin-bottom: 10px; }
+.template-option { display: grid; grid-template-columns: auto 70px minmax(0, 1fr); gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 12px; cursor: pointer; }
+.template-option.selected { border-color: var(--primary); background: var(--soft); }
+.template-option .hint { display: block; }
+.template-preview { display: grid; place-items: center; min-height: 90px; border: 1px dashed var(--line); background: var(--panel); text-align: center; }
+.template-preview img { display: block; width: 100%; height: auto; }
 .auth-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(ellipse at top, #e9efff 0, var(--bg) 70%); }
 .auth-card { width: min(450px, 100%); padding: 38px; background: white; border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 15px 55px #243c7910; }
 .auth-card h1 { margin-top: 12px; }
