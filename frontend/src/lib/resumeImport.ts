@@ -183,3 +183,34 @@ export function applyImportPlan(plan: ImportPlan): ResumeProfile {
   }
   return result
 }
+
+export function fillResumeGaps(current: ResumeProfile, source: ResumeProfile): ResumeProfile {
+  const plan = createImportPlan(current, source)
+  for (const field of plan.scalars) field.choice = field.current?.trim() ? 'current' : 'incoming'
+  for (const skill of plan.skills) {
+    if (skill.current === null) skill.choice = current.skills.length ? 'skip' : 'incoming'
+  }
+  const fillEntries = <T extends EditableEntry>(items: EntryImport<T>[], sectionEmpty: boolean) => {
+    for (const item of items) {
+      item.include = item.current !== null || sectionEmpty
+      for (const field of item.fields) {
+        const populated = typeof field.current === 'string' ? !!field.current.trim() : field.current.some(value => value.trim())
+        field.choice = populated ? 'current' : 'incoming'
+      }
+      for (const list of item.lists) {
+        const existing = item.current?.[list.key]
+        const empty = Array.isArray(existing) && existing.every(value => !value.trim())
+        for (const point of list.items) {
+          point.selected = empty ? point.source === 'incoming' : point.source !== 'incoming'
+        }
+      }
+    }
+  }
+  fillEntries(plan.experience, !current.experience.length)
+  fillEntries(plan.education, !current.education.length)
+  fillEntries(plan.publications, !current.publications.length)
+  fillEntries(plan.projects, !current.projects.length)
+  fillEntries(plan.certifications, !current.certifications.length)
+  fillEntries(plan.languages, !current.languages.length)
+  return applyImportPlan(plan)
+}

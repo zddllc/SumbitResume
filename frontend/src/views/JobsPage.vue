@@ -59,7 +59,7 @@ async function changed() { await run(async () => { await loadJobs(); await loadT
     <p v-if="!jobs.items.length" class="empty">暂无职位。确认底板并登录 LinkedIn 后，开始第一次遍历。</p>
     <article v-for="job in jobs.items" :key="job.id" class="job-row">
       <div><h3>{{ job.title }}</h3><p class="hint">{{ [job.company, job.location].filter(Boolean).join(' · ') }}</p>
-        <span class="badge">{{ !job.tailored ? '描述已保存，尚未生成简历' : !job.current_source ? '历史简历 · 底板或职位已变化' : job.tailored.review_status === 'reviewed' && job.tailored.pdf ? '已确认 · PDF 已生成' : '已生成 · 待编辑确认 PDF' }}</span>
+        <span class="badge">{{ !job.tailored ? '描述已保存，尚未生成简历' : !job.current_source ? '历史简历 · 底板或职位已变化' : job.tailored.pdf_ready ? 'PDF 已完成 · 可下载' : '已生成内容 · 待确认制作 PDF' }}</span>
       </div>
       <button class="secondary small" @click="selected = job.linkedin_id">查看职位与简历</button>
     </article>

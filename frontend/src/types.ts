@@ -30,12 +30,18 @@ export type Task = {
   id: string; kind: 'browser' | 'parse' | 'scan' | 'tailor'; status: TaskStatus; created_at: string
   processed: number; generated: number; cached: number; failed: number
   error?: string | null; errors: { job_id: string; message: string }[]
+  result_resume_id?: string
 }
 export type ApplicationInfo = { kind: 'external' | 'easy_apply' | 'unavailable'; url?: string | null; error?: string | null }
 export type ResumeTemplate = { id: string; name: string; description: string; preview_url: string | null }
 export type TemplateCatalog = { default_template_id: string; items: ResumeTemplate[] }
 export type PdfArtifact = { file_id: string; sha256: string; profile_hash: string; size: number; created_at: string; template_id?: string; template_hash?: string }
-export type ResumeVersion = { id: string; created_at: string; llm: { model: string }; review_status: string; pdf?: PdfArtifact }
+export type ResumeVersion = { id: string; created_at: string; llm: { model: string }; review_status: string; pdf?: PdfArtifact; pdf_ready?: boolean }
+export type LatestSource = {
+  status: 'current' | 'changed' | 'unknown' | 'unavailable'
+  confirmed: ResumeProfile | null; confirmed_hash: string | null; confirmed_at?: string | null
+  has_pending_changes: boolean
+}
 export type Job = {
   id: string; linkedin_id: string; url: string; title: string; company: string; location: string
   description?: string; application_kind?: ApplicationInfo['kind']; application_url?: string | null
@@ -45,6 +51,7 @@ export type TailoredResume = ResumeVersion & {
   job: Job & { description: string }; resume: ResumeProfile; source_resume: ResumeProfile
   edit_token: string; application: ApplicationInfo; pdf_ready: boolean; reviewed_at?: string
   template_id?: string
+  latest_source?: LatestSource
 }
 export type AppState = {
   user: User; resume: ResumeRecord | null; personal: PersonalInfo

@@ -132,6 +132,9 @@ details > summary { cursor: pointer; }
 dialog { border: 1px solid var(--line); border-radius: 16px; width: min(1300px, 95vw); max-height: 92vh; padding: 28px; color: var(--text); }
 dialog::backdrop { background: #12203975; backdrop-filter: blur(2px); }
 .detail-grid { margin-top: 24px; gap: 32px; }
+.pdf-toolbar { border: 1px solid var(--line); border-radius: 10px; padding: 16px; background: var(--soft); }
+.pdf-toolbar .check { margin-top: 0; }
+.pdf-toolbar .hint { margin: 10px 0 0; }
 .prose { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 13px; }
 .resume-preview { margin: 25px 0; padding: 22px; background: #fafbfc; border: 1px solid var(--line); border-radius: 8px; }
 .resume-preview h2 { border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-top: 24px; font-size: 16px; }

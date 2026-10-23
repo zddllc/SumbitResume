@@ -29,13 +29,13 @@ export function useAction() {
   }
   return { busy, message, run }
 }
-export function usePolling(work: () => Promise<void>, enabled: () => boolean, fail: (error: unknown) => void) {
+export function usePolling(work: () => Promise<void>, enabled: () => boolean, fail: (error: unknown) => void, interval = 2500) {
   let running = false
   const timer = setInterval(async () => {
     if (running || !enabled()) return
     running = true
     try { await work() } catch (error) { fail(error) } finally { running = false }
-  }, 2500)
+  }, interval)
   onBeforeUnmount(() => clearInterval(timer))
 }
 export function moveItem<T>(items: readonly T[], from: number, to: number): T[] {

@@ -183,7 +183,7 @@ class TaskRunner:
                     "source_hash": fingerprint(resume_cache_data(source)), "current_job": linkedin_id,
                 }},
             )
-            _resume_id, cached = self.workflow.tailor_stored(
+            resume_id, cached = self.workflow.tailor_stored(
                 user_id, linkedin_id, source, settings, task_id=task_id,
             )
             self.db.tasks.update_one(
@@ -191,6 +191,7 @@ class TaskRunner:
                 {"$set": {
                     "processed": 1, "generated": 0 if cached else 1,
                     "cached": 1 if cached else 0, "current_job": linkedin_id,
+                    "result_resume_id": resume_id,
                 }},
             )
 

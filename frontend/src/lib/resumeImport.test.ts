@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyResume } from './forms'
-import { applyImportPlan, createImportPlan } from './resumeImport'
+import { applyImportPlan, createImportPlan, fillResumeGaps } from './resumeImport'
 import type { ResumeProfile } from '../types'
 
 function profile(): ResumeProfile {
@@ -256,5 +256,44 @@ describe('non-destructive resume import choices', () => {
     expect(applyImportPlan(plan).projects[0]!.name).toBe('Renamed project')
     incoming.projects[0]!.url = 'https://example.test/project'
     expect(createImportPlan(original, incoming).projects).toHaveLength(2)
+  })
+
+  it('fills blank source facts without replacing manual wording, order or nonempty sections', () => {
+    const current = profile()
+    current.contact.phone = ''
+    current.summary = ''
+    current.education = []
+    current.experience[0]!.end_date = ''
+    current.experience[0]!.location = 'Hand-edited location'
+    current.publications[0]!.authors = []
+    const source = profile()
+    source.contact.phone = '+1 555 0100'
+    source.experience[0]!.bullets = ['Different source point']
+    source.experience.push({ ...source.experience[0]!, company: 'Another company', bullets: ['Do not append unknown entry'] })
+    source.skills.push('Rust')
+    const result = fillResumeGaps(current, source)
+    expect(result.contact.phone).toBe('+1 555 0100')
+    expect(result.summary).toBe(source.summary)
+    expect(result.education).toEqual(source.education)
+    expect(result.experience).toEqual([{ ...current.experience[0]!, end_date: '2024' }])
+    expect(result.publications[0]!.authors).toEqual(source.publications[0]!.authors)
+    expect(result.skills).toEqual(current.skills)
+    expect(current.contact.phone).toBe('')
+    expect(current.education).toEqual([])
+    result.education[0]!.details.push('Local-only edit')
+    expect(source.education[0]!.details).toEqual(['Original detail'])
+  })
+
+  it('can fill empty list fields of uniquely matched entries and ignores uncertain correspondence', () => {
+    const current = profile()
+    current.experience[0]!.bullets = []
+    current.projects[0]!.bullets = []
+    current.skills = []
+    const source = profile()
+    expect(fillResumeGaps(current, source).experience[0]!.bullets).toEqual(source.experience[0]!.bullets)
+    expect(fillResumeGaps(current, source).projects[0]!.bullets).toEqual(source.projects[0]!.bullets)
+    expect(fillResumeGaps(current, source).skills).toEqual(source.skills)
+    source.experience.push({ ...source.experience[0]!, end_date: '2026', bullets: ['Ambiguous version'] })
+    expect(fillResumeGaps(current, source).experience[0]!.bullets).toEqual([])
   })
 })

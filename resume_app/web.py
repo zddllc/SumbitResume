@@ -20,7 +20,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from resume_app.documents import MAX_UPLOAD_BYTES, DocumentError, extract_text
 from resume_app.errors import AppError
 from resume_app.models import (
-    CredentialInput, LLMSettings, LoginInput, PersonalInfo, ResumeProfile, SetupInput,
+    CredentialInput, LLMSettings, LoginInput, PersonalInfo, ResumeProfile, SetupInput, resume_cache_data,
 )
 from resume_app.pdf import (
     DEFAULT_TEMPLATE_ID, LEGACY_TEMPLATE_ID, template_catalog, template_docx, template_pdf,
@@ -426,9 +426,12 @@ def list_jobs():
     for job in db().jobs.find(query, {"description": 0}).sort("last_seen_at", -1).skip((page - 1) * 25).limit(25):
         tailored = db().tailored_resumes.find_one(
             {"user_id": user_id, "job_id": job["_id"]},
-            {"resume": 0, "source_resume": 0, "job": 0, "plan": 0},
+            {"source_resume": 0, "job": 0, "plan": 0},
             sort=[("created_at", -1)],
         )
+        if tailored:
+            tailored["pdf_ready"] = pdf_ready(db(), user_id, tailored)
+            tailored.pop("resume", None)
         job["tailored"] = tailored
         job["current_source"] = bool(
             tailored and tailored.get("source_hash") == source.get("confirmed_hash")
@@ -479,6 +482,31 @@ def owned_tailored(resume_id: str) -> dict:
     return stored
 
 
+def latest_source(stored: dict) -> dict:
+    base = db().resumes.find_one({"_id": g.user["_id"]}) or {}
+    confirmed = base.get("confirmed")
+    if confirmed is None:
+        return {"status": "unavailable", "confirmed": None, "confirmed_hash": None,
+                "confirmed_at": None, "has_pending_changes": bool(base.get("draft") or base.get("pending_import"))}
+    profile = ResumeProfile.model_validate(confirmed)
+    source_hash = fingerprint(resume_cache_data(profile))
+    previous_hash = stored.get("source_hash")
+    if not previous_hash and stored.get("source_resume") is not None:
+        previous_hash = fingerprint(resume_cache_data(ResumeProfile.model_validate(stored["source_resume"])))
+    return {
+        "status": "unknown" if not previous_hash else "current" if previous_hash == source_hash else "changed",
+        "confirmed": profile.model_dump(), "confirmed_hash": source_hash,
+        "confirmed_at": base.get("confirmed_at"),
+        "has_pending_changes": bool(base.get("draft") or base.get("pending_import")),
+    }
+
+
+@web.get("/api/tailored/<resume_id>/source")
+@require_user
+def tailored_source(resume_id):
+    return jsonify(public(latest_source(owned_tailored(resume_id))))
+
+
 @web.get("/api/tailored/<resume_id>")
 @require_user
 def get_tailored(resume_id):
@@ -494,6 +522,7 @@ def get_tailored(resume_id):
         "error": current_job.get("application_error"),
     }
     stored["pdf_ready"] = pdf_ready(db(), g.user["_id"], stored)
+    stored["latest_source"] = latest_source(stored)
     # Validate the artifact against the original stored shape before adding defaults.
     stored["resume"] = ResumeProfile.model_validate(stored["resume"]).model_dump()
     if "source_resume" in stored:
@@ -531,18 +560,22 @@ def review_tailored(resume_id):
         fingerprint(profile.model_dump()), content, template=template,
     )
     token = uuid4().hex
+    reviewed_at = now()
     updated = db().tailored_resumes.update_one(
         {"_id": resume_id, "user_id": g.user["_id"], "edit_token": stored["edit_token"]},
         {"$set": {
             "resume": profile.model_dump(), "review_status": "reviewed",
-            "reviewed_at": now(), "edit_token": token, "pdf": artifact,
+            "reviewed_at": reviewed_at, "edit_token": token, "pdf": artifact,
             "template_id": template["template_id"],
         }},
     )
     if not updated.matched_count:
         pdf_files(db()).delete(file_id)
         raise AppError("确认过程中简历已被更新，请重新加载后再确认", 409)
-    return jsonify(ok=True, edit_token=token, pdf_url=url_for("web.download_pdf", resume_id=resume_id))
+    return jsonify(public({
+        "ok": True, "edit_token": token, "pdf_url": url_for("web.download_pdf", resume_id=resume_id),
+        "pdf": artifact, "pdf_ready": True, "reviewed_at": reviewed_at,
+    }))
 
 
 @web.get("/api/tailored/<resume_id>/pdf")
